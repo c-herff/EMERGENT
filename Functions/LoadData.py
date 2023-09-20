@@ -1,16 +1,16 @@
 import pandas as pd
 import numpy as np
 
-def get_data(patient):
+def get_data(patient,path='./data/'):
     """
     Load the CSV files of the patient and return a data frame with all the data.
     @param patient: patient name/synonym.
     """
 
     # Load the CSV files
-    df_dyskinesia = pd.read_csv('./data/{}/{}_dyskinesia.csv'.format(patient, patient))
-    df_tremor = pd.read_csv('./data/{}/{}_tremor.csv'.format(patient, patient))
-    df_tremor_severity = pd.read_csv('./data/{}/{}_tremor_severity.csv'.format(patient, patient))
+    df_dyskinesia = pd.read_csv('{}/{}/{}_dyskinesia.csv'.format(path,patient, patient))
+    df_tremor = pd.read_csv('{}/{}/{}_tremor.csv'.format(path,patient, patient))
+    df_tremor_severity = pd.read_csv('{}/{}/{}_tremor_severity.csv'.format(path,patient, patient))
 
     # Convert the time column to DateTime
     df_dyskinesia['time'] = pd.to_datetime(df_dyskinesia['time'], unit='s')

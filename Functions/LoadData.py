@@ -10,12 +10,24 @@ def get_patient_phase_main(df_main_patient_phases, patient, dates):
     @return: a series of phases
     """
 
+    preop_start = df_main_patient_phases.loc[patient, 'preop'].date()
+    lesion_start = df_main_patient_phases.loc[patient, 'lesion'].date()
+    finetune_start = df_main_patient_phases.loc[patient, 'finetune'].date()
+
     df_phases = pd.DataFrame(columns=['date','phase'])
     df_phases['date'] = dates
-    df_phases['phase'][pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'preop'].date()] = 'none'
-    df_phases['phase'][(pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'preop'].date()) & (pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'lesion'].date())] = 'preop'
-    df_phases['phase'][(pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'lesion'].date()) & (pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'finetune'].date())] = 'lesion'
-    df_phases['phase'][pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'finetune'].date()] = 'finetune'
+    
+    # set phase to none where date is before preop_start
+    df_phases.loc[pd.to_datetime(df_phases['date']).dt.date < preop_start, 'phase'] = 'none'
+
+    # set phase to preop where date is between preop_start and lesion_start
+    df_phases.loc[(pd.to_datetime(df_phases['date']).dt.date >= preop_start) & (pd.to_datetime(df_phases['date']).dt.date < lesion_start), 'phase'] = 'preop'
+
+    # set phase to lesion where date is between lesion_start and finetune_start
+    df_phases.loc[(pd.to_datetime(df_phases['date']).dt.date >= lesion_start) & (pd.to_datetime(df_phases['date']).dt.date < finetune_start), 'phase'] = 'lesion'
+
+    # set phase to finetune where date is after finetune_start
+    df_phases.loc[pd.to_datetime(df_phases['date']).dt.date >= finetune_start, 'phase'] = 'finetune'
 
     return df_phases['phase']
 
@@ -34,7 +46,8 @@ def get_data(patient,path='./data/'):
     # Load medication settings
     medication_settings = {}
     for phase in df_fine_patient_phases['phase'].unique():
-        df_med = pd.read_csv('{}/{}/{}_med_{}.csv'.format(path,patient, patient, phase), sep=';', parse_dates=['time'], dayfirst=True)
+        df_med = pd.read_csv('{}/{}/{}_med_{}.csv'.format(path,patient, patient, phase), sep=';')
+        df_med['time'] = pd.to_datetime(df_med['time'],format= '%H:%M' ).dt.time
         medication_settings[phase] = df_med
 
     # Load DBS settings
@@ -91,3 +104,5 @@ def get_data(patient,path='./data/'):
 
     # Return the combined data frame
     return df_combined, df_fine_patient_phases, medication_settings, dbs_settings
+
+df_combined, df_fine_patient_phases, medication_settings, dbs_settings = get_data("EM2")

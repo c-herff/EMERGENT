@@ -7,7 +7,7 @@ def get_patient_phase_main(df_main_patient_phases, patient, dates):
     @param df_main_patient_phases: a data frame with the dates of the different main phases of the patients
     @param patient: patient name/synonym.
     @param dates: a series of dates
-    @return: a series of phases
+    @return: a series of main phases
     """
 
     preop_start = df_main_patient_phases.loc[patient, 'preop'].date()
@@ -28,6 +28,28 @@ def get_patient_phase_main(df_main_patient_phases, patient, dates):
 
     # set phase to finetune where date is after finetune_start
     df_phases.loc[pd.to_datetime(df_phases['date']).dt.date >= finetune_start, 'phase'] = 'finetune'
+
+    return df_phases['phase']
+
+def get_patient_phase_fine(df_fine_patient_phases, dates):
+    """
+    Get the fine phase of the patient on a certain date.
+    @param df_fine_patient_phases: a data frame with the dates of the different fine phases of the patients
+    @param dates: a series of dates
+    @return: a series of fine phases
+    """
+
+    phases = df_fine_patient_phases['phase'].unique()
+    df_phases = pd.DataFrame(columns=['date','phase'])
+    df_phases['date'] = dates
+    df_phases.loc[:,'phase'] = 'none'
+
+    for i in range(1, len(phases)):
+        phase_start = df_fine_patient_phases['date'][df_fine_patient_phases['phase'] == phases[i-1]].iloc[0].date()
+        phase_end = df_fine_patient_phases['date'][df_fine_patient_phases['phase'] == phases[i]].iloc[0].date()
+        df_phases.loc[(pd.to_datetime(df_phases['date']).dt.date >= phase_start) & (pd.to_datetime(df_phases['date']).dt.date < phase_end), 'phase'] = phases[i-1]
+
+    df_phases.loc[pd.to_datetime(df_phases['date']).dt.date >= phase_end, 'phase'] = phases[-1]
 
     return df_phases['phase']
 
@@ -101,6 +123,7 @@ def get_data(patient,path='./data/'):
 
     # Add patient phase
     df_combined['phase_main'] = get_patient_phase_main(df_main_patient_phases, patient, df_combined['time'])
+    df_combined['phase_fine'] = get_patient_phase_fine(df_fine_patient_phases, df_combined['time'])
 
     # Return the combined data frame
     return df_combined, df_fine_patient_phases, medication_settings, dbs_settings

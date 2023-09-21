@@ -1,29 +1,23 @@
 import pandas as pd
 import numpy as np
 
-def get_patient_phase(df_patient_phases, patient, dates):
+def get_patient_phase_main(df_main_patient_phases, patient, dates):
     """
-    Get the phase of the patient on a certain date.
+    Get the main phase of the patient on a certain date.
+    @param df_main_patient_phases: a data frame with the dates of the different main phases of the patients
+    @param patient: patient name/synonym.
     @param dates: a series of dates
     @return: a series of phases
     """
 
-    phases = []
+    df_phases = pd.DataFrame(columns=['date','phase'])
+    df_phases['date'] = dates
+    df_phases['phase'][pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'preop'].date()] = 'none'
+    df_phases['phase'][(pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'preop'].date()) & (pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'lesion'].date())] = 'preop'
+    df_phases['phase'][(pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'lesion'].date()) & (pd.to_datetime(df_phases['date']).dt.date < df_main_patient_phases.loc[patient, 'finetune'].date())] = 'lesion'
+    df_phases['phase'][pd.to_datetime(df_phases['date']).dt.date >= df_main_patient_phases.loc[patient, 'finetune'].date()] = 'finetune'
 
-    for i, date in enumerate(dates):
-        if type(date) == pd.Timestamp:
-            date = date.date()
-
-        if date < df_patient_phases.loc[patient, 'preop'].date():
-            phases.append('none')
-        elif date < df_patient_phases.loc[patient, 'lesion'].date():
-            phases.append('preop')
-        elif date < df_patient_phases.loc[patient, 'finetune'].date():
-            phases.append('lesion')
-        else:
-            phases.append('finetune')
-
-    return phases
+    return df_phases['phase']
 
 def get_data(patient,path='./data/'):
     """
@@ -35,9 +29,22 @@ def get_data(patient,path='./data/'):
     df_dyskinesia = pd.read_csv('{}/{}/{}_dyskinesia.csv'.format(path,patient, patient))
     df_tremor = pd.read_csv('{}/{}/{}_tremor.csv'.format(path,patient, patient))
     df_tremor_severity = pd.read_csv('{}/{}/{}_tremor_severity.csv'.format(path,patient, patient))
+    df_fine_patient_phases = pd.read_csv('{}/{}/{}_phases.csv'.format(path,patient, patient), sep=';', parse_dates=['date'], dayfirst=True)
+
+    # Load medication settings
+    medication_settings = {}
+    for phase in df_fine_patient_phases['phase'].unique():
+        df_med = pd.read_csv('{}/{}/{}_med_{}.csv'.format(path,patient, patient, phase), sep=';', parse_dates=['time'], dayfirst=True)
+        medication_settings[phase] = df_med
+
+    # Load DBS settings
+    dbs_settings = {}
+    for phase in df_fine_patient_phases['phase'].unique():
+        df_dbs = pd.read_csv('{}/{}/{}_DBS_{}.csv'.format(path,patient, patient, phase), sep=';')
+        dbs_settings[phase] = df_dbs
 
     # Load the different patient phases
-    df_patient_phases = pd.read_csv('{}/dates.csv'.format(path), index_col=0, sep=';', parse_dates=['preop', 'lesion', 'finetune'], dayfirst=True)
+    df_main_patient_phases = pd.read_csv('{}/dates.csv'.format(path), index_col=0, sep=';', parse_dates=['preop', 'lesion', 'finetune'], dayfirst=True)
 
     # Convert the time column to DateTime
     df_dyskinesia['time'] = pd.to_datetime(df_dyskinesia['time'], unit='s')
@@ -80,7 +87,7 @@ def get_data(patient,path='./data/'):
     df_combined = df_combined.iloc[:-1]
 
     # Add patient phase
-    df_combined['phase'] = get_patient_phase(df_patient_phases, patient, df_combined['time'])
+    df_combined['phase_main'] = get_patient_phase_main(df_main_patient_phases, patient, df_combined['time'])
 
     # Return the combined data frame
-    return df_combined
+    return df_combined, df_fine_patient_phases, medication_settings, dbs_settings

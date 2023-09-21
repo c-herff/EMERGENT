@@ -104,5 +104,3 @@ def get_data(patient,path='./data/'):
 
     # Return the combined data frame
     return df_combined, df_fine_patient_phases, medication_settings, dbs_settings
-
-df_combined, df_fine_patient_phases, medication_settings, dbs_settings = get_data("EM2")

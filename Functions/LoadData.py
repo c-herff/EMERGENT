@@ -77,6 +77,16 @@ def get_data(patient,path='./data/'):
     for phase in df_fine_patient_phases['phase'].unique():
         df_dbs = pd.read_csv('{}/{}/{}_DBS_{}.csv'.format(path,patient, patient, phase), sep=';')
         dbs_settings[phase] = df_dbs
+    # Create DataFrame
+    s=None
+    for key in dbs_settings.keys():
+        a = dbs_settings[key]
+        a['phase']=key
+        if type(s)==pd.core.frame.DataFrame:
+            s = pd.concat([s,pd.DataFrame(a)])
+        else:
+            s = pd.DataFrame(a)
+    dbs_settings=s
 
     # Load the different patient phases
     df_main_patient_phases = pd.read_csv('{}/dates.csv'.format(path), index_col=0, sep=';', parse_dates=['preop', 'lesion', 'finetune'], dayfirst=True)
@@ -125,5 +135,7 @@ def get_data(patient,path='./data/'):
     df_combined['phase_main'] = get_patient_phase_main(df_main_patient_phases, patient, df_combined['time'])
     df_combined['phase_fine'] = get_patient_phase_fine(df_fine_patient_phases, df_combined['time'])
 
+    df_fine_patient_phases = pd.merge(df_fine_patient_phases,dbs_settings,on='phase')
+
     # Return the combined data frame
-    return df_combined, df_fine_patient_phases, medication_settings, dbs_settings
+    return df_combined, df_fine_patient_phases, medication_settings

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 def get_patient_phase_main(df_main_patient_phases, patient, dates):
     """
@@ -137,5 +138,37 @@ def get_data(patient,path='./data/'):
 
     df_fine_patient_phases = pd.merge(df_fine_patient_phases,dbs_settings,on='phase')
 
+    df_fine_patient_phases['start_date']=pd.to_datetime(df_fine_patient_phases['date'])
+    df_fine_patient_phases = df_fine_patient_phases.drop(['date'],axis=1)
+
+    df_fine_patient_phases = df_fine_patient_phases.sort_values('start_date')
+    df_fine_patient_phases['end_date']=df_fine_patient_phases['start_date']
+    df_fine_patient_phases['end_date'].iloc[:-1]=df_fine_patient_phases['start_date'].iloc[1:]
+
+    df_fine_patient_phases['end_date'].iloc[-1]=df_combined['time'].iloc[-1]
+
+
+    #Extract all individual medication intakes
+    medTimes = None
+    for key in medication_settings.keys():
+        meds=medication_settings[key]
+        intakes = np.argwhere(np.any(meds.iloc[:,1:]!=0,axis=1))
+        intakes = [i[0] for i in intakes]
+        startDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['start_date']
+        endDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['end_date']
+        print(endDate,startDate)
+        diffDays=(endDate-startDate).iloc[0].days
+        for intake in intakes:
+            t = datetime.datetime.combine(startDate.iloc[0],meds['time'].iloc[intake])
+            text = ('%s:%f-%s:%f' % (meds.columns[1],meds.iloc[intake,1],meds.columns[2],meds.iloc[intake,2]))
+            ts = [t+datetime.timedelta(days=1)*i for i in range(diffDays)]
+            inTime = {'date':ts}
+            inTime['med'] =  [text]*diffDays
+            if type(medTimes)==pd.core.frame.DataFrame:
+                medTimes = pd.concat([medTimes,pd.DataFrame(inTime)])
+            else:
+                medTimes = pd.DataFrame(inTime)
+    medTimes = medTimes.sort_values('date')
+
     # Return the combined data frame
-    return df_combined, df_fine_patient_phases, medication_settings
+    return df_combined, df_fine_patient_phases, medication_settings, medTimes

@@ -64,7 +64,7 @@ def get_med_intakes(medication_settings,df_fine_patient_phases):
     medTimes = None
     for key in medication_settings.keys():
         meds=medication_settings[key]
-        intakes = np.argwhere(np.any(meds.iloc[:,1:]!=0,axis=1))
+        intakes = np.argwhere(np.any(meds.values[:,1:]!=0,axis=1))
         intakes = [i[0] for i in intakes]
         startDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['start_date']
         endDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['end_date']

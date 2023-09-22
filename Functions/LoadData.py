@@ -54,6 +54,34 @@ def get_patient_phase_fine(df_fine_patient_phases, dates):
 
     return df_phases['phase']
 
+def get_med_intakes(medication_settings,df_fine_patient_phases):
+    """
+    Generate series of each moment medication was taken.
+    @param medication_settings: dictionary of phases with their respective daily medication intake schedules 
+    @param df_fine_patient_phases: a data frame with the dates of the different fine phases of the patients
+    @return: a series of dates-times with medication intakes 
+    """
+    medTimes = None
+    for key in medication_settings.keys():
+        meds=medication_settings[key]
+        intakes = np.argwhere(np.any(meds.iloc[:,1:]!=0,axis=1))
+        intakes = [i[0] for i in intakes]
+        startDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['start_date']
+        endDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['end_date']
+
+        diffDays=(endDate-startDate).iloc[0].days
+        for intake in intakes:
+            t = datetime.datetime.combine(startDate.iloc[0],meds['time'].iloc[intake])
+            text = ('%s:%f-%s:%f' % (meds.columns[1],meds.iloc[intake,1],meds.columns[2],meds.iloc[intake,2]))
+            ts = [t+datetime.timedelta(days=1)*i for i in range(diffDays)]
+            inTime = {'date':ts}
+            inTime['med'] =  [text]*diffDays
+            if type(medTimes)==pd.core.frame.DataFrame:
+                medTimes = pd.concat([medTimes,pd.DataFrame(inTime)])
+            else:
+                medTimes = pd.DataFrame(inTime)
+    return medTimes.sort_values('date')
+
 def get_data(patient,path='./data/'):
     """
     Load the CSV files of the patient and return a data frame with all the data.
@@ -149,26 +177,8 @@ def get_data(patient,path='./data/'):
 
 
     #Extract all individual medication intakes
-    medTimes = None
-    for key in medication_settings.keys():
-        meds=medication_settings[key]
-        intakes = np.argwhere(np.any(meds.iloc[:,1:]!=0,axis=1))
-        intakes = [i[0] for i in intakes]
-        startDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['start_date']
-        endDate = df_fine_patient_phases[df_fine_patient_phases['phase']==key]['end_date']
-        print(endDate,startDate)
-        diffDays=(endDate-startDate).iloc[0].days
-        for intake in intakes:
-            t = datetime.datetime.combine(startDate.iloc[0],meds['time'].iloc[intake])
-            text = ('%s:%f-%s:%f' % (meds.columns[1],meds.iloc[intake,1],meds.columns[2],meds.iloc[intake,2]))
-            ts = [t+datetime.timedelta(days=1)*i for i in range(diffDays)]
-            inTime = {'date':ts}
-            inTime['med'] =  [text]*diffDays
-            if type(medTimes)==pd.core.frame.DataFrame:
-                medTimes = pd.concat([medTimes,pd.DataFrame(inTime)])
-            else:
-                medTimes = pd.DataFrame(inTime)
-    medTimes = medTimes.sort_values('date')
+    medTimes = get_med_intakes(medication_settings,df_fine_patient_phases)
+    
 
     # Return the combined data frame
     return df_combined, df_fine_patient_phases, medication_settings, medTimes
